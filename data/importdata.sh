@@ -18,16 +18,27 @@ len=${#collections[@]}
 # Helpers
 ################################################################################
 create_database() {
-  az cosmosdb database create -g $resourceGroup -n $cosmosName --db-name $databaseName > /dev/null
+  # Verify db doesn't exist
+  az cosmosdb database list -g $resourceGroup -n $cosmosName | grep id | grep $databaseName
+  rc=$?  # get return code from the previous command.
+  if [[ $rc != 0 ]]  # if db doesnt exist (because errored out)
+  then az cosmosdb database create -g $resourceGroup -n $cosmosName --db-name $databaseName > /dev/null
+  fi
 }
 
-create_collections() {
+create_collections() {  
   for ((i=0; i<len; i++)); do
     step=$((i + 1))
     echo "($step of $len) Creating collection '${collections[i]}'"
+    # Verify collection doesn't exist
+    az cosmosdb collection list -g $resourceGroup -n $cosmosName --db-name $databaseName | grep \"id\" | grep ${collections[$i]}
+    rc=$?  # get return code from the previous command.
+    if [[ $rc != 0 ]]  # if collection didnt exist (because errored out)
+    then
     partition="/'\$v'/${keys[$i]}/'\$v'"
     az cosmosdb collection create -g $resourceGroup -n $cosmosName --db-name $databaseName --collection-name ${collections[$i]} \
       --partition-key-path $partition --throughput 100000 > /dev/null
+    fi
   done
 }
 
